@@ -1,0 +1,14 @@
+__pycache__
+*.pyc
+*.pyo
+.git
+.gitignore
+.env
+.vscode
+.idea
+*.md
+!README.md
+case_study.pdf
+case_study_text.txt
+extract_pdf.py
+venv/

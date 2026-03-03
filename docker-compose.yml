@@ -1,0 +1,69 @@
+services:
+  # FastAPI Application
+  app:
+    build: .
+    container_name: llm-discovery-app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      system_db:
+        condition: service_healthy
+      demo_db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # System Database (stores metadata, auth, classification results)
+  system_db:
+    image: postgres:16-alpine
+    container_name: llm-discovery-system-db
+    environment:
+      POSTGRES_DB: system_database
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5433:5432"
+    volumes:
+      - system_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d system_database" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # Demo Database (target DB for metadata extraction & classification)
+  demo_db:
+    image: postgres:16-alpine
+    container_name: llm-discovery-demo-db
+    environment:
+      POSTGRES_DB: demo_database
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - demo_db_data:/var/lib/postgresql/data
+      - ./demo_db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d demo_database" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
+volumes:
+  system_db_data:
+  demo_db_data:
+
+
+networks:
+  app-network:
+    driver: bridge

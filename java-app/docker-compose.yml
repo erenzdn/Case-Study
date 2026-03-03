@@ -1,0 +1,80 @@
+services:
+  # Spring Boot Application
+  app:
+    build: .
+    container_name: llm-discovery-java-app
+    ports:
+      - "8000:8000"
+    environment:
+      SYSTEM_DB_HOST: system_db
+      SYSTEM_DB_PORT: 5432
+      SYSTEM_DB_NAME: system_database
+      SYSTEM_DB_USER: postgres
+      SYSTEM_DB_PASSWORD: postgres123
+      AUTH_USERNAME: admin
+      AUTH_PASSWORD: admin123
+      JWT_SECRET_KEY: change-this-to-a-random-secret-key
+      JWT_EXPIRATION_MINUTES: 60
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-your-openai-api-key-here}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+    depends_on:
+      system_db:
+        condition: service_healthy
+      demo_db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # System Database (stores metadata, classifications)
+  system_db:
+    image: postgres:16-alpine
+    container_name: llm-discovery-java-system-db
+    environment:
+      POSTGRES_DB: system_database
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5433:5432"
+    volumes:
+      - system_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d system_database" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # Demo Database (target DB for metadata extraction & classification)
+  demo_db:
+    image: postgres:16-alpine
+    container_name: llm-discovery-java-demo-db
+    environment:
+      POSTGRES_DB: demo_database
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - demo_db_data:/var/lib/postgresql/data
+      - ../demo_db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d demo_database" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
+volumes:
+  system_db_data:
+  demo_db_data:
+
+
+networks:
+  app-network:
+    driver: bridge
