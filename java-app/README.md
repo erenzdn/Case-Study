@@ -159,6 +159,22 @@ curl -X POST http://localhost:8000/classify \
   }'
 ```
 
+## 🧪 Unit Testler
+
+Testler JUnit 5 + Mockito ile yazılmıştır, Docker gerektirmez.
+
+```bash
+mvn test
+```
+
+| Test Dosyası | Kapsam | Test Sayısı |
+|-------------|--------|-------------|
+| `AuthControllerTest.java` | 200 response, bearer token type, username delegation | 4 |
+| `LlmServiceTest.java` | 13 PII kategorisi, prompt içeriği, probability normalization | 7 |
+| `JwtAuthenticationFilterTest.java` | Valid/expired/invalid token, missing header, filter chain | 7 |
+
+**Sonuç:** `BUILD SUCCESS` — 18 test, 0 hata
+
 ## 🛑 Durdurma
 
 ```bash

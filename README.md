@@ -199,6 +199,21 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 > **Not**: Yerel çalıştırma için PostgreSQL veritabanlarının çalışır durumda olması ve `.env` dosyasındaki bağlantı bilgilerinin doğru yapılandırılması gerekir.
 
+## 🧪 Unit Testler
+
+Testler `pytest` ile çalışır, harici DB bağlantısı gerektirmez (mock kullanılır).
+
+```bash
+pip install pytest pytest-mock
+pytest
+```
+
+| Test Dosyası | Kapsam | Test Sayısı |
+|-------------|--------|-------------|
+| `tests/test_auth.py` | `verify_credentials()`, `create_access_token()` | 9 |
+| `tests/test_llm_service.py` | Prompt building, 13 PII kategorisi, TCKN | 7 |
+| `tests/test_metadata_service.py` | Credential masking, connection string | 5 |
+
 ## 🛑 Durdurma
 
 ```bash

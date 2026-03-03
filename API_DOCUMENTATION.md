@@ -356,4 +356,204 @@ curl -X POST http://localhost:8000/classify \
 
 ## Swagger UI
 
-Tüm endpoint'leri interaktif olarak test etmek için: **http://localhost:8000/docs**
+- **Task 1 (Python):** http://localhost:8000/docs
+- **Task 2 (Java):** http://localhost:8000/swagger-ui/index.html
+
+---
+
+## Controllers
+
+Her controller, belirli bir sorumluluk grubundan sorumludur. Spring MVC `@RestController` / FastAPI router mimarisini yansıtır.
+
+---
+
+### HealthController
+| Özellik | Değer |
+|---------|-------|
+| **Python** | `app/main.py` — `@app.get("/")` |
+| **Java** | `controller/HealthController.java` |
+| **Sorumluluk** | Uygulamanın ayakta olduğunu doğrular |
+| **Endpoint** | `GET /` |
+| **Auth** | ❌ Gerekmez |
+
+---
+
+### AuthController
+| Özellik | Değer |
+|---------|-------|
+| **Python** | `app/routers/auth.py` |
+| **Java** | `controller/AuthController.java` |
+| **Sorumluluk** | Basic Auth ile kimlik doğrulama; JWT Bearer Token üretimi |
+| **Endpoint** | `POST /auth` |
+| **Auth** | ✅ Basic Auth (username + password) |
+| **Request DTO** | — |
+| **Response DTO** | `AuthResponse` |
+
+**Akış:**
+```
+Client → Basic Auth header → Spring Security doğrular
+→ AuthController → SecurityConfig.generateToken(username)
+→ AuthResponse (access_token, token_type)
+```
+
+---
+
+### MetadataController
+| Özellik | Değer |
+|---------|-------|
+| **Python** | `app/routers/metadata.py` |
+| **Java** | `controller/MetadataController.java` |
+| **Sorumluluk** | Hedef DB keşfi, metadata CRUD işlemleri |
+| **Auth** | ✅ Bearer JWT (Task 2) / Basic Auth (Task 1) |
+
+| Endpoint | Method | Request DTO | Response DTO | HTTP Status |
+|----------|--------|-------------|--------------|-------------|
+| `/db/metadata` | POST | `DBConnectionRequest` | `MetadataDetailResponse` | 201 Created |
+| `/metadata` | GET | — | `List<MetadataListResponse>` | 200 OK |
+| `/metadata/{id}` | GET | — | `MetadataDetailResponse` | 200 OK |
+| `/metadata/{id}` | DELETE | — | `Map<String, String>` | 200 OK |
+
+---
+
+### ClassifyController
+| Özellik | Değer |
+|---------|-------|
+| **Python** | `app/routers/classify.py` |
+| **Java** | `controller/ClassifyController.java` |
+| **Sorumluluk** | LLM ile PII sınıflandırması |
+| **Endpoint** | `POST /classify` |
+| **Auth** | ✅ Bearer JWT (Task 2) / Basic Auth (Task 1) |
+| **Request DTO** | `ClassifyRequest` |
+| **Response DTO** | `ClassifyResponse` |
+
+**Akış:**
+```
+ClassifyController → ClassifyService
+  1. column_id → ColumnMetadata → TableMetadata → DatabaseMetadata
+  2. JDBC ile hedef DB'ye bağlan → sample_count kadar veri çek
+  3. LlmService.classifyWithLlm() → OpenAI API → JSON parse
+  4. ClassifyResponse döndür
+```
+
+---
+
+## DTOs (Data Transfer Objects)
+
+DTOlar, API request/response yapısını tanımlar. Python'da Pydantic şemaları, Java'da Java Records + Jakarta Validation kullanılır.
+
+---
+
+### Request DTOs
+
+#### `DBConnectionRequest`
+`POST /db/metadata` endpoint'inin request gövdesi.
+
+| Alan | Tip | Zorunlu | Validation | Açıklama |
+|------|-----|---------|------------|----------|
+| `host` | string | ✅ | `@NotBlank` | Hedef DB sunucu adresi |
+| `port` | integer | ✅ | `@NotNull`, `@Positive` | PostgreSQL port (genellikle 5432) |
+| `database` | string | ✅ | `@NotBlank` | Veritabanı adı |
+| `username` | string | ✅ | `@NotBlank` | DB kullanıcı adı |
+| `password` | string | ✅ | `@NotBlank` | DB şifresi (response'a yansıtılmaz) |
+
+```json
+{
+  "host": "demo_db",
+  "port": 5432,
+  "database": "demo_database",
+  "username": "postgres",
+  "password": "postgres"
+}
+```
+
+---
+
+#### `ClassifyRequest`
+`POST /classify` endpoint'inin request gövdesi.
+
+| Alan | Tip | Zorunlu | Validation | Açıklama |
+|------|-----|---------|------------|----------|
+| `column_id` | UUID | ✅ | `@NotNull` | Sınıflandırılacak kolon ID'si |
+| `sample_count` | integer | ❌ | `@Min(1)` `@Max(100)` | Varsayılan: 10 |
+
+```json
+{
+  "column_id": "cc234500-1c58-4b2b-9823-169e46335f72",
+  "sample_count": 10
+}
+```
+
+---
+
+### Response DTOs
+
+#### `AuthResponse`
+`POST /auth` yanıtı.
+
+| Alan | Tip | Açıklama |
+|------|-----|----------|
+| `access_token` | string | HS256 imzalı JWT Bearer Token |
+| `token_type` | string | Her zaman `"bearer"` |
+
+```json
+{ "access_token": "eyJhbGci...", "token_type": "bearer" }
+```
+
+---
+
+#### `MetadataListResponse`
+`GET /metadata` listesindeki her eleman.
+
+| Alan | Tip | Açıklama |
+|------|-----|----------|
+| `metadata_id` | UUID | Tarama kaydı ID'si |
+| `database_name` | string | Taranan DB adı |
+| `created_at` | datetime | Tarama zamanı |
+| `table_count` | integer | Keşfedilen tablo sayısı |
+
+---
+
+#### `MetadataDetailResponse`
+`POST /db/metadata` ve `GET /metadata/{id}` yanıtı.
+
+```
+MetadataDetailResponse
+├── metadata_id      UUID
+├── database_name    string
+├── created_at       datetime       (sadece GET /metadata/{id}'de)
+├── table_count      integer        (sadece POST /db/metadata'da)
+└── tables[]
+    ├── table_id     UUID
+    ├── table_name   string
+    ├── schema_name  string
+    └── columns[]
+        ├── column_id        UUID   ← /classify için kullanılır
+        ├── column_name      string
+        ├── data_type        string
+        ├── is_nullable      string ("YES" / "NO")
+        └── ordinal_position integer
+```
+
+---
+
+#### `ClassifyResponse`
+`POST /classify` yanıtı.
+
+| Alan | Tip | Açıklama |
+|------|-----|----------|
+| `column_id` | UUID | Sınıflandırılan kolon |
+| `column_name` | string | Kolon adı |
+| `table_name` | string | Bağlı tablo |
+| `database_name` | string | Bağlı veritabanı |
+| `sample_count` | integer | Çekilen örnek sayısı |
+| `samples` | string[] | Gerçek örnek değerler |
+| `classifications` | object[] | 13 kategorinin olasılık dağılımı |
+
+`classifications` dizisindeki her eleman:
+
+| Alan | Tip | Açıklama |
+|------|-----|----------|
+| `category` | string | PII kategori adı |
+| `probability` | float | 0.0 – 1.0 arası olasılık |
+
+> Tüm `probability` değerlerinin toplamı her zaman **1.0**'dır. Sonuçlar olasılığa göre azalan sırada sıralanır.

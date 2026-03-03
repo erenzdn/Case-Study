@@ -5,19 +5,12 @@ services:
     container_name: llm-discovery-java-app
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
       SYSTEM_DB_HOST: system_db
       SYSTEM_DB_PORT: 5432
       SYSTEM_DB_NAME: system_database
-      SYSTEM_DB_USER: postgres
-      SYSTEM_DB_PASSWORD: postgres123
-      AUTH_USERNAME: admin
-      AUTH_PASSWORD: admin123
-      JWT_SECRET_KEY: change-this-to-a-random-secret-key
-      JWT_EXPIRATION_MINUTES: 60
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-your-openai-api-key-here}
-      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
     depends_on:
       system_db:
         condition: service_healthy
