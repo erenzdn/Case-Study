@@ -83,7 +83,14 @@ kafein-CaseStudy/
 - Docker & Docker Compose
 - OpenAI API Key (veya OpenAI-compatible API) — `/classify` için
 
-#### Adım 1 — Ortam Değişkenlerini Yapılandırma
+#### Adım 1 — Repoyu Klonlayın
+
+```bash
+git clone https://github.com/erenzdn/Case-Study.git
+cd Case-Study
+```
+
+#### Adım 2 — Ortam Değişkenlerini Yapılandırma
 
 ```bash
 cp .env.example .env
