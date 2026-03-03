@@ -21,6 +21,8 @@ venv/
 .env
 .vscode/
 .idea/
+target/
+java-app/target/
 *.db
 *.sqlite3
 case_study.pdf
